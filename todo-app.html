@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>To-Do</title>
+  <style>
+    /* ArcByte task, day 3: To-Do app. Style it your way: max width 480px, centred. */
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, sans-serif; }
+    .done .task-text { text-decoration: line-through; opacity: 0.6; }
+
+    /* Start here */
+
+    body {
+      background: #f1f5f9;
+      color: #1e293b;
+      padding: 40px 16px;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 28px;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+    }
+
+    h1 {
+      text-align: center;
+      color: #166534;
+      margin-top: 0;
+    }
+
+    #new-task-form {
+      display: flex;
+      gap: 10px;
+    }
+
+    #new-task-input {
+      flex: 1;
+      min-width: 0;
+      padding: 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    button {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: #16a34a;
+      color: white;
+      font-weight: 600;
+    }
+
+    .filters {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin: 22px 0;
+    }
+
+    .filters button {
+      background: #e2e8f0;
+      color: #334155;
+    }
+
+    .filters button.active {
+      background: #166534;
+      color: white;
+    }
+
+    #task-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    #task-list li {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 0;
+      border-bottom: 1px solid #e2e8f0;
+    }
+
+    .task-text {
+      flex: 1;
+      overflow-wrap: anywhere;
+      cursor: pointer;
+    }
+
+    #task-list li.done .task-text {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    .delete {
+      background: #dc2626;
+    }
+
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-top: 22px;
+      font-size: 14px;
+    }
+
+    #clear-done {
+      background: #475569;
+    }
+
+    .error {
+      color: #dc2626;
+      font-size: 14px;
+    }
+
+    .empty {
+      text-align: center;
+      color: #64748b;
+      padding: 20px 0;
+    }
+
+  @media (max-width: 400px) {
+    .app {
+      padding: 20px 14px;
+    }
+
+    button {
+      padding: 9px 10px;
+    }
+  }
+
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>To-Do</h1>
+
+    <form id="new-task-form">
+      <input id="new-task-input" type="text" placeholder="What needs doing?" autocomplete="off" />
+      <button type="submit">Add</button>
+    </form>
+    <p id="error" class="error" hidden>Write something first.</p>
+
+    <div class="filters">
+      <button type="button" data-filter="all" class="active">All</button>
+      <button type="button" data-filter="active">Active</button>
+      <button type="button" data-filter="done">Done</button>
+    </div>
+
+    <ul id="task-list"></ul>
+    <p id="empty" class="empty" hidden>Nothing here yet.</p>
+
+    <footer class="summary">
+      <span id="counter">0 tasks left</span>
+      <button type="button" id="clear-done">Clear done</button>
+    </footer>
+  </main>
+
+  <script>
+    // ArcByte task, day 3. Plain JavaScript only: no libraries.
+    //
+    // The whole app's data lives in one array. Each task: { id: number, text: string, done: boolean }
+    // Change the array, then call render(). Never change the page any other way.
+    let tasks = [];
+    let filter = 'all'; // 'all' | 'active' | 'done'
+    const STORAGE_KEY = 'arcbyte-todo';
+
+    const form = document.querySelector('#new-task-form');
+    const input = document.querySelector('#new-task-input');
+    const list = document.querySelector('#task-list');
+    function load() {
+      const savedTasks = localStorage.getItem(STORAGE_KEY);
+
+      if (savedTasks) {
+        tasks = JSON.parse(savedTasks);
+      }
+    }
+
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    }
+
+    function addTask(text) {
+      text = text.trim();
+
+      if (text === '') {
+        document.querySelector('#error').hidden = false;
+        return;
+      }
+
+      document.querySelector('#error').hidden = true;
+
+      tasks.push({
+        id: Date.now(),
+        text: text,
+        done: false
+      });
+
+      save();
+      render();
+    }
+
+    function toggleTask(id) {
+      const task = tasks.find(task => task.id === id);
+
+      if (task) {
+        task.done = !task.done;
+      }
+
+      save();
+      render();
+    }
+
+    function deleteTask(id) {
+      tasks = tasks.filter(task => task.id !== id);
+      save();
+      render();
+    }
+
+    function editTask(id, newText) {
+      newText = newText.trim();
+      if (newText === '') {
+        deleteTask(id);
+        return;
+      }
+      const task = tasks.find(task => task.id === id);
+
+      if (task) {
+        task.text = newText;
+      }
+
+      save();
+      render();
+    }
+
+    function clearDone() {
+      tasks = tasks.filter(task => !task.done);
+      save();
+      render();
+    }
+
+    function visibleTasks() {
+      if (filter === 'active') {
+        return tasks.filter(task => !task.done);
+      }
+      else if (filter === 'done') {
+        return tasks.filter(task => task.done);
+      }
+      return tasks;
+    }
+
+    function render() {
+      list.textContent = '';
+
+      const currentTasks = visibleTasks();
+
+      currentTasks.forEach(task => {
+        const li = document.createElement('li');
+        li.dataset.id = task.id;
+
+        if (task.done) {
+          li.classList.add('done');
+        }
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = task.done;
+        checkbox.className = 'toggle';
+
+        const span = document.createElement('span');
+        span.className = 'task-text';
+        span.textContent = task.text;
+
+        const deleteButton = document.createElement('button');
+        deleteButton.type = 'button';
+        deleteButton.className = 'delete';
+        deleteButton.textContent = 'Delete';
+
+        li.append(checkbox, span, deleteButton);
+        list.append(li);
+      });
+
+      const remaining = tasks.filter(task => !task.done).length;
+      document.querySelector('#counter').textContent =
+      `${remaining} ${remaining === 1 ? 'task' : 'tasks'} left`;
+
+      document.querySelector('#empty').hidden = currentTasks.length !== 0;
+      document.querySelectorAll('[data-filter]').forEach(button => {
+        button.classList.toggle('active', button.dataset.filter === filter);
+      });
+    }
+
+    form.addEventListener('submit', function(event) {
+      event.preventDefault();
+
+      addTask(input.value);
+
+      if (input.value.trim() !== '') {
+        input.value = '';
+      }
+    });
+
+    list.addEventListener('click', function(event) {
+      const li = event.target.closest('li');
+
+      if (!li) return;
+
+      const id = Number(li.dataset.id);
+
+      if (event.target.classList.contains('toggle')) {
+        toggleTask(id);
+      }
+
+      if (event.target.classList.contains('delete')) {
+        deleteTask(id);
+      }
+    });
+
+    list.addEventListener('dblclick', function(event) {
+      if (!event.target.classList.contains('task-text')) return;
+
+      const span = event.target;
+      const li = span.closest('li');
+      const id = Number(li.dataset.id);
+
+      const editInput = document.createElement('input');
+      editInput.type = 'text';
+      editInput.value = span.textContent;
+
+      span.replaceWith(editInput);
+      editInput.focus();
+      editInput.select();
+
+      function finishEditing(saveChanges) {
+        if (saveChanges) {
+          editTask(id, editInput.value);
+        } else {
+          render();
+        }
+      }
+
+      editInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          finishEditing(true);
+        }
+
+        if (e.key === 'Escape') {
+          finishEditing(false);
+        }
+      });
+
+      editInput.addEventListener('blur', function() {
+        if    (editInput.isConnected) {
+          finishEditing(true);
+        }
+      });
+    });
+
+    document.querySelectorAll('[data-filter]').forEach(button => {
+      button.addEventListener('click', function() {
+        filter = button.dataset.filter;
+        render();
+      });
+    });
+
+    document.querySelector('#clear-done').addEventListener('click', function() {
+      clearDone();
+    });
+    load();
+    render();
+  </script>
+</body>
+</html>
